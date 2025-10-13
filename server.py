@@ -48,23 +48,23 @@ async def handle_client(reader, writer):
     addr = writer.get_extra_info('peername')
 
     try:
-        print(f"New connection from {addr}")
+        print(f"New connection")
         data = await reader.readline()
         if not data:
-            print(f"Client {addr} disconnected before sending JOIN")
+            print(f"Client disconnected before sending JOIN")
             return
 
         join_msg = deserialize(data)
         if not join_msg or join_msg.get('type') != MSG_JOIN:
-            print(f"Invalid JOIN message from {addr}")
+            print(f"Invalid JOIN message")
             return
 
         username = join_msg.get('sender')
         if not username:
-            print(f"No username provided from {addr}")
+            print(f"No username provided")
             return
 
-        print(f"{username} joined from {addr}")
+        print(f"{username} joined")
 
         clients[username] = (reader, writer)
 
