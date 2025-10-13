@@ -220,35 +220,6 @@ class ChatApp(App):
             pass
 
 
-async def test_username(username, host=None, port=None):
-    if host is None or port is None:
-        host, port = load_server_config()
-    try:
-        reader, writer = await asyncio.open_connection(host, port)
-
-        join_msg = createMessage(username, type=MSG_JOIN)
-        writer.write(serialize(join_msg))
-        await writer.drain()
-
-        data = await asyncio.wait_for(reader.readline(), timeout=5.0)
-
-        writer.close()
-        await writer.wait_closed()
-
-        if data:
-            msg = deserialize(data)
-            if msg:
-                if msg.get('type') == MSG_ERROR:
-                    return False, msg.get('content')
-                elif msg.get('type') == MSG_SUCCESS:
-                    return True, None
-
-        return False, "Unexpected server response"
-
-    except Exception as e:
-        return False, f"Connection failed: {e}"
-
-
 def main():
     import sys
     import time
@@ -267,13 +238,26 @@ def main():
         username = sys.argv[1]
 
     while True:
-        print(f"Checking username '{username}'...")
+        print(f"Connecting as '{username}'...")
 
         try:
-            available, error_msg = asyncio.run(test_username(username))
+            app = ChatApp(username)
+            connection_error = [None]
 
-            if not available:
-                print(f"\n{error_msg}")
+            original_connect = app.client.connect
+
+            async def wrapped_connect(host=None, port=None):
+                result = await original_connect(host, port)
+                if result != True:
+                    connection_error[0] = result
+                    app.exit()
+                return result
+
+            app.client.connect = wrapped_connect
+            app.run()
+
+            if connection_error[0]:
+                print(f"\n{connection_error[0]}")
                 username = input("Please choose a different username: ").strip()
                 if not username:
                     print("Username cannot be empty!")
@@ -281,26 +265,17 @@ def main():
                     time.sleep(3)
                     sys.exit(1)
                 continue
-
-            print("Username available! Connecting...")
-            break
+            else:
+                break
 
         except Exception as e:
             print(f"Error: {e}")
             print("Program will close in 5 seconds...")
             time.sleep(5)
-            sys.exit(1)
+            break
 
-    try:
-        app = ChatApp(username)
-        app.run()
-    except Exception as e:
-        print(f"Error: {e}")
-        print("Program will close in 5 seconds...")
-        time.sleep(5)
-    finally:
-        print("Goodbye!")
-        time.sleep(1)
+    print("Goodbye!")
+    time.sleep(1)
 
 
 if __name__ == "__main__":
