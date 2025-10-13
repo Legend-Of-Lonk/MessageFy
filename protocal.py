@@ -6,6 +6,7 @@ MSG_LEAVE = "LEAVE"
 MSG_MESSAGE = "MESSAGE"
 MSG_USERLIST = "USER_LIST"
 MSG_ERROR = "ERROR"
+MSG_SUCCESS = "SUCCESS"
 
 def createMessage(sender, type=MSG_MESSAGE, content='<Empty>', timestamp=None):
 

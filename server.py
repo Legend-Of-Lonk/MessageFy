@@ -82,6 +82,15 @@ async def handle_client(reader, writer):
 
         clients[username] = (reader, writer)
 
+        # Send success message first to confirm username was accepted
+        success_msg = createMessage(
+            sender="Server",
+            type=MSG_SUCCESS,
+            content="Connected successfully"
+        )
+        writer.write(serialize(success_msg))
+        await writer.drain()
+
         await send_history(writer, username)
         join_broadcast = createMessage(
             sender="Server",

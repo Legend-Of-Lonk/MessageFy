@@ -22,25 +22,30 @@ class ChatClient:
             self.writer.write(serialize(join_msg))
             await self.writer.drain()
 
-            # Wait for server response to check if username is accepted
+            # Wait for server response
             data = await asyncio.wait_for(self.reader.readline(), timeout=5.0)
             if data:
                 msg = deserialize(data)
-                if msg and msg.get('type') == MSG_ERROR:
-                    # Username rejected
-                    self.connected = False
-                    self.writer.close()
-                    await self.writer.wait_closed()
-                    return msg.get('content')  # Return error message
+                if msg:
+                    if msg.get('type') == MSG_ERROR:
+                        # Username rejected
+                        self.connected = False
+                        error_content = msg.get('content')
+                        self.writer.close()
+                        await self.writer.wait_closed()
+                        return error_content  # Return the error message
+                    elif msg.get('type') == MSG_SUCCESS:
+                        # Start receiving messages
+                        asyncio.create_task(self.receive_messages())
+                        return True
 
+            # If unexpected response, still try to continue
             asyncio.create_task(self.receive_messages())
-
             return True
-        except asyncio.TimeoutError:
-            self.connected = False
-            return "Connection timeout - server did not respond"
+
         except Exception as e:
             self.connected = False
+            self.app.add_system_message(f"Connection failed: {e}")
             return f"Connection failed: {e}"
 
     async def send_message(self, content):
@@ -199,40 +204,44 @@ def main():
     else:
         username = sys.argv[1]
 
-    # Try to connect with username, retry if taken
+    # Create a simple flag to check connection result
+    connection_error = [None]  # Use list to allow modification in nested function
+
     while True:
+        print(f"Connecting as '{username}'...")
+
         try:
             app = ChatApp(username)
 
-            # Override on_mount to check connection result
+            # Override on_mount to capture connection errors
             original_on_mount = app.on_mount
-            connection_result = None
 
-            def custom_on_mount():
-                nonlocal connection_result
-                async def check_connection():
-                    nonlocal connection_result
-                    connection_result = await app.client.connect()
-                    if connection_result != True:
-                        # Connection failed, exit app
+            def new_on_mount():
+                async def try_connect():
+                    result = await app.client.connect()
+                    if result != True:
+                        # Connection failed or username rejected
+                        connection_error[0] = result if isinstance(result, str) else "Connection failed"
                         app.exit()
-                asyncio.create_task(check_connection())
 
-            app.on_mount = custom_on_mount
+                asyncio.create_task(try_connect())
+
+            app.on_mount = new_on_mount
             app.run()
 
-            # If we get here, check if connection failed
-            if connection_result != True and connection_result is not None:
-                print(f"\n{connection_result}")
+            # If connection error was set, username was taken
+            if connection_error[0]:
+                print(f"\n{connection_error[0]}")
                 username = input("Please choose a different username: ").strip()
                 if not username:
                     print("Username cannot be empty!")
                     print("Program will close in 3 seconds...")
                     time.sleep(3)
                     sys.exit(1)
-                continue  # Try again with new username
+                connection_error[0] = None  # Reset for next attempt
+                continue
             else:
-                # Successful connection or normal exit
+                # Normal exit or successful connection
                 break
 
         except Exception as e:
