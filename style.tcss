@@ -1,0 +1,47 @@
+Screen {
+    background: #2E3436;
+}
+
+#main_container {
+    height: 1fr;
+    background: #2E3436;
+}
+
+#chat_container {
+    width: 3fr;
+    border: solid cyan;
+    background: #2E3436;
+    padding: 1;
+}
+
+#chat_messages {
+    height: 1fr;
+    background: #2E3436;
+    color: #839496;
+    scrollbar-size-vertical: 1;
+    scrollbar-background: transparent;
+    scrollbar-color: #839496;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#users_container {
+    width: 20;
+    border: solid green;
+    background: #2E3436;
+    padding: 1;
+    scrollbar-size-vertical: 1;
+    scrollbar-background: transparent;
+    scrollbar-color: #839496;
+}
+
+#users_list {
+    background: #2E3436;
+    color: #839496;
+}
+
+Input {
+    border: solid magenta;
+    background: #2E3436;
+    color: #839496;
+}
