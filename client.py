@@ -283,7 +283,6 @@ def main():
                 continue
 
             print("Username available! Connecting...")
-            time.sleep(0.5)
             break
 
         except Exception as e:

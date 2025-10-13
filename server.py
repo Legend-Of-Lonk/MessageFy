@@ -90,6 +90,12 @@ async def handle_client(reader, writer):
         await writer.drain()
 
         await send_history(writer, username)
+
+        await asyncio.sleep(1)
+
+        if username not in clients:
+            return
+
         join_broadcast = createMessage(
             sender="Server",
             type=MSG_JOIN,
