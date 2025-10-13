@@ -22,12 +22,26 @@ class ChatClient:
             self.writer.write(serialize(join_msg))
             await self.writer.drain()
 
+            # Wait for server response to check if username is accepted
+            data = await asyncio.wait_for(self.reader.readline(), timeout=5.0)
+            if data:
+                msg = deserialize(data)
+                if msg and msg.get('type') == MSG_ERROR:
+                    # Username rejected
+                    self.connected = False
+                    self.writer.close()
+                    await self.writer.wait_closed()
+                    return msg.get('content')  # Return error message
+
             asyncio.create_task(self.receive_messages())
 
             return True
+        except asyncio.TimeoutError:
+            self.connected = False
+            return "Connection timeout - server did not respond"
         except Exception as e:
-            self.app.add_system_message(f"Connection failed: {e}")
-            return False
+            self.connected = False
+            return f"Connection failed: {e}"
 
     async def send_message(self, content):
         if not self.connected:
@@ -63,6 +77,9 @@ class ChatClient:
                     self.app.add_system_message(content)
                 elif msg_type == MSG_USERLIST:
                     self.app.update_user_list(content)
+                elif msg_type == MSG_ERROR:
+                    # Don't handle errors here, let them propagate
+                    pass
 
         except Exception as e:
             self.app.add_system_message(f"Connection error: {e}")
@@ -171,6 +188,7 @@ def main():
     import sys
     import time
 
+    # Get initial username
     if len(sys.argv) < 2:
         username = input("Enter your username: ").strip()
         if not username:
@@ -181,16 +199,50 @@ def main():
     else:
         username = sys.argv[1]
 
-    try:
-        app = ChatApp(username)
-        app.run()
-    except Exception as e:
-        print(f"Error: {e}")
-        print("Program will close in 5 seconds...")
-        time.sleep(5)
-    finally:
-        print("Goodbye!")
-        time.sleep(1)
+    # Try to connect with username, retry if taken
+    while True:
+        try:
+            app = ChatApp(username)
+
+            # Override on_mount to check connection result
+            original_on_mount = app.on_mount
+            connection_result = None
+
+            def custom_on_mount():
+                nonlocal connection_result
+                async def check_connection():
+                    nonlocal connection_result
+                    connection_result = await app.client.connect()
+                    if connection_result != True:
+                        # Connection failed, exit app
+                        app.exit()
+                asyncio.create_task(check_connection())
+
+            app.on_mount = custom_on_mount
+            app.run()
+
+            # If we get here, check if connection failed
+            if connection_result != True and connection_result is not None:
+                print(f"\n{connection_result}")
+                username = input("Please choose a different username: ").strip()
+                if not username:
+                    print("Username cannot be empty!")
+                    print("Program will close in 3 seconds...")
+                    time.sleep(3)
+                    sys.exit(1)
+                continue  # Try again with new username
+            else:
+                # Successful connection or normal exit
+                break
+
+        except Exception as e:
+            print(f"Error: {e}")
+            print("Program will close in 5 seconds...")
+            time.sleep(5)
+            break
+
+    print("Goodbye!")
+    time.sleep(1)
 
 
 if __name__ == "__main__":

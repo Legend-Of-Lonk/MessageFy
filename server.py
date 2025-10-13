@@ -64,6 +64,20 @@ async def handle_client(reader, writer):
             print(f"No username provided")
             return
 
+        # Check if username is already taken
+        if username in clients:
+            print(f"Username '{username}' is already in use, rejecting connection")
+            error_msg = createMessage(
+                sender="Server",
+                type=MSG_ERROR,
+                content=f"Username '{username}' is already taken. Please choose a different username."
+            )
+            writer.write(serialize(error_msg))
+            await writer.drain()
+            writer.close()
+            await writer.wait_closed()
+            return
+
         print(f"{username} joined")
 
         clients[username] = (reader, writer)
