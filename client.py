@@ -1,8 +1,41 @@
 import asyncio
+import json
+import os
 from textual.app import App, ComposeResult
 from textual.widgets import Input, RichLog, Static
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from protocal import *
+
+
+def load_server_config():
+    config_file = "server_config.json"
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, config_file)
+
+    if not os.path.exists(config_path):
+        config_path = config_file
+
+    if not os.path.exists(config_path):
+        default_config = {
+            "host": "shinkansen.proxy.rlwy.net",
+            "port": 20565
+        }
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(default_config, f, indent=2)
+            print(f"Created {config_file} with default settings")
+        except Exception as e:
+            print(f"Warning: Could not create {config_file}: {e}")
+            return default_config['host'], default_config['port']
+
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            return config.get('host', '127.0.0.1'), config.get('port', 5000)
+    except json.JSONDecodeError:
+        print(f"Error: {config_file} is not valid JSON. Using defaults (127.0.0.1:5000)")
+        return '127.0.0.1', 5000
 
 
 class ChatClient:
@@ -13,7 +46,9 @@ class ChatClient:
         self.writer = None
         self.connected = False
 
-    async def connect(self, host='shinkansen.proxy.rlwy.net', port=20565):
+    async def connect(self, host=None, port=None):
+        if host is None or port is None:
+            host, port = load_server_config()
         try:
             self.reader, self.writer = await asyncio.open_connection(host, port)
             self.connected = True
@@ -22,24 +57,20 @@ class ChatClient:
             self.writer.write(serialize(join_msg))
             await self.writer.drain()
 
-            # Wait for server response
             data = await asyncio.wait_for(self.reader.readline(), timeout=5.0)
             if data:
                 msg = deserialize(data)
                 if msg:
                     if msg.get('type') == MSG_ERROR:
-                        # Username rejected
                         self.connected = False
                         error_content = msg.get('content')
                         self.writer.close()
                         await self.writer.wait_closed()
-                        return error_content  # Return the error message
+                        return error_content
                     elif msg.get('type') == MSG_SUCCESS:
-                        # Start receiving messages
                         asyncio.create_task(self.receive_messages())
                         return True
 
-            # If unexpected response, still try to continue
             asyncio.create_task(self.receive_messages())
             return True
 
@@ -83,7 +114,6 @@ class ChatClient:
                 elif msg_type == MSG_USERLIST:
                     self.app.update_user_list(content)
                 elif msg_type == MSG_ERROR:
-                    # Don't handle errors here, let them propagate
                     pass
 
         except Exception as e:
@@ -129,6 +159,7 @@ class ChatApp(App):
             asyncio.create_task(self.client.disconnect())
 
     def compose(self) -> ComposeResult:
+        yield Static("MessageFy", id="header")
         with Horizontal(id="main_container"):
             with Vertical(id="chat_container"):
                 yield RichLog(id="chat_messages", highlight=True, markup=True, auto_scroll=True, wrap=True)
@@ -189,11 +220,42 @@ class ChatApp(App):
             pass
 
 
+async def test_username(username, host=None, port=None):
+    if host is None or port is None:
+        host, port = load_server_config()
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+
+        join_msg = createMessage(username, type=MSG_JOIN)
+        writer.write(serialize(join_msg))
+        await writer.drain()
+
+        data = await asyncio.wait_for(reader.readline(), timeout=5.0)
+
+        writer.close()
+        await writer.wait_closed()
+
+        if data:
+            msg = deserialize(data)
+            if msg:
+                if msg.get('type') == MSG_ERROR:
+                    return False, msg.get('content')
+                elif msg.get('type') == MSG_SUCCESS:
+                    return True, None
+
+        return False, "Unexpected server response"
+
+    except Exception as e:
+        return False, f"Connection failed: {e}"
+
+
 def main():
     import sys
     import time
 
-    # Get initial username
+    host, port = load_server_config()
+    print(f"Server: {host}:{port}\n")
+
     if len(sys.argv) < 2:
         username = input("Enter your username: ").strip()
         if not username:
@@ -204,54 +266,42 @@ def main():
     else:
         username = sys.argv[1]
 
-    # Create a simple flag to check connection result
-    connection_error = [None]  # Use list to allow modification in nested function
-
     while True:
-        print(f"Connecting as '{username}'...")
+        print(f"Checking username '{username}'...")
 
         try:
-            app = ChatApp(username)
+            available, error_msg = asyncio.run(test_username(username))
 
-            # Override on_mount to capture connection errors
-            original_on_mount = app.on_mount
-
-            def new_on_mount():
-                async def try_connect():
-                    result = await app.client.connect()
-                    if result != True:
-                        # Connection failed or username rejected
-                        connection_error[0] = result if isinstance(result, str) else "Connection failed"
-                        app.exit()
-
-                asyncio.create_task(try_connect())
-
-            app.on_mount = new_on_mount
-            app.run()
-
-            # If connection error was set, username was taken
-            if connection_error[0]:
-                print(f"\n{connection_error[0]}")
+            if not available:
+                print(f"\n{error_msg}")
                 username = input("Please choose a different username: ").strip()
                 if not username:
                     print("Username cannot be empty!")
                     print("Program will close in 3 seconds...")
                     time.sleep(3)
                     sys.exit(1)
-                connection_error[0] = None  # Reset for next attempt
                 continue
-            else:
-                # Normal exit or successful connection
-                break
+
+            print("Username available! Connecting...")
+            time.sleep(0.5)
+            break
 
         except Exception as e:
             print(f"Error: {e}")
             print("Program will close in 5 seconds...")
             time.sleep(5)
-            break
+            sys.exit(1)
 
-    print("Goodbye!")
-    time.sleep(1)
+    try:
+        app = ChatApp(username)
+        app.run()
+    except Exception as e:
+        print(f"Error: {e}")
+        print("Program will close in 5 seconds...")
+        time.sleep(5)
+    finally:
+        print("Goodbye!")
+        time.sleep(1)
 
 
 if __name__ == "__main__":

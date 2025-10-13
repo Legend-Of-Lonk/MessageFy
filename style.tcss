@@ -2,6 +2,15 @@ Screen {
     background: #2E3436;
 }
 
+#header {
+    text-align: center;
+    background: #2E3436;
+    color: cyan;
+    text-style: bold;
+    height: 3;
+    content-align: center middle;
+}
+
 #main_container {
     height: 1fr;
     background: #2E3436;

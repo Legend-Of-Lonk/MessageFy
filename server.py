@@ -64,7 +64,6 @@ async def handle_client(reader, writer):
             print(f"No username provided")
             return
 
-        # Check if username is already taken
         if username in clients:
             print(f"Username '{username}' is already in use, rejecting connection")
             error_msg = createMessage(
@@ -82,7 +81,6 @@ async def handle_client(reader, writer):
 
         clients[username] = (reader, writer)
 
-        # Send success message first to confirm username was accepted
         success_msg = createMessage(
             sender="Server",
             type=MSG_SUCCESS,
@@ -159,18 +157,15 @@ async def handle_client(reader, writer):
 
 
 async def console_input():
-    """Handle console commands"""
     loop = asyncio.get_event_loop()
     while True:
         try:
             cmd = await loop.run_in_executor(None, input)
             if cmd.strip().lower() == "clear":
-                # Clear history file
                 try:
                     open(HISTORY_FILE, 'w').close()
                     print("Chat history cleared on server")
 
-                    # Broadcast clear message to all clients
                     clear_msg = createMessage(
                         sender="Server",
                         type=MSG_MESSAGE,
@@ -203,7 +198,6 @@ async def main():
     print("Waiting for connections...")
     print("Type 'help' for server commands\n")
 
-    # Start console input handler
     asyncio.create_task(console_input())
 
     async with server:
