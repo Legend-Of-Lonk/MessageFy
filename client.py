@@ -13,7 +13,7 @@ class ChatClient:
         self.writer = None
         self.connected = False
 
-    async def connect(self, host='127.0.0.1', port=5000):
+    async def connect(self, host='shinkansen.proxy.rlwy.net', port=20565):
         try:
             self.reader, self.writer = await asyncio.open_connection(host, port)
             self.connected = True
@@ -128,10 +128,23 @@ class ChatApp(App):
         try:
             chat_display = self.query_one("#chat_messages", RichLog)
             safe_sender = escape(sender)
+
             if sender == self.username:
                 chat_display.write(f"[bold cyan]{safe_sender}[/bold cyan]: {content}")
             else:
                 chat_display.write(f"[bold yellow]{safe_sender}[/bold yellow]: {content}")
+                self.play_notification_sound()
+        except Exception:
+            pass
+
+    def play_notification_sound(self):
+        try:
+            import sys
+            if sys.platform == 'win32':
+                import winsound
+                winsound.Beep(1000, 200)
+            else:
+                print('\a', end='', flush=True)
         except Exception:
             pass
 
@@ -156,14 +169,28 @@ class ChatApp(App):
 
 def main():
     import sys
+    import time
 
     if len(sys.argv) < 2:
-        print("Usage: python3 client.py <username>")
-        sys.exit(1)
+        username = input("Enter your username: ").strip()
+        if not username:
+            print("Username cannot be empty!")
+            print("Program will close in 3 seconds...")
+            time.sleep(3)
+            sys.exit(1)
+    else:
+        username = sys.argv[1]
 
-    username = sys.argv[1]
-    app = ChatApp(username)
-    app.run()
+    try:
+        app = ChatApp(username)
+        app.run()
+    except Exception as e:
+        print(f"Error: {e}")
+        print("Program will close in 5 seconds...")
+        time.sleep(5)
+    finally:
+        print("Goodbye!")
+        time.sleep(1)
 
 
 if __name__ == "__main__":

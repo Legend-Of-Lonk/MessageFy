@@ -135,6 +135,36 @@ async def handle_client(reader, writer):
             print(f"Error closing connection: {e}")
 
 
+async def console_input():
+    """Handle console commands"""
+    loop = asyncio.get_event_loop()
+    while True:
+        try:
+            cmd = await loop.run_in_executor(None, input)
+            if cmd.strip().lower() == "clear":
+                # Clear history file
+                try:
+                    open(HISTORY_FILE, 'w').close()
+                    print("Chat history cleared on server")
+
+                    # Broadcast clear message to all clients
+                    clear_msg = createMessage(
+                        sender="Server",
+                        type=MSG_MESSAGE,
+                        content="[bold red]Chat history has been cleared by server admin[/bold red]"
+                    )
+                    await broadcast(clear_msg)
+                except Exception as e:
+                    print(f"Error clearing history: {e}")
+            elif cmd.strip().lower() == "help":
+                print("\nServer Commands:")
+                print("  clear - Clear chat history and notify all users")
+                print("  help  - Show this help message")
+                print()
+        except Exception as e:
+            print(f"Console error: {e}")
+            break
+
 async def main():
     import os
     HOST = '0.0.0.0'
@@ -148,6 +178,10 @@ async def main():
     addr = server.sockets[0].getsockname()
     print(f"MessageFy Server started on {addr[0]}:{addr[1]}")
     print("Waiting for connections...")
+    print("Type 'help' for server commands\n")
+
+    # Start console input handler
+    asyncio.create_task(console_input())
 
     async with server:
         await server.serve_forever()
