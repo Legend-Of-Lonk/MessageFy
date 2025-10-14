@@ -96,4 +96,3 @@ MessageFy supports Rich markup for text formatting. See MARKUP_GUIDE.md for full
 Contributions are welcome! Please feel free to submit issues or pull requests
 
 
-
