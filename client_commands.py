@@ -12,6 +12,7 @@ def handle_command(command, app):
             app.add_system_message("  /shrug - Send shrug emoticon")
             app.add_system_message("  /dnd - Toggle Do Not Disturb mode (disable all notifications)")
             app.add_system_message("  /afk - Toggle AFK mode (enable notifications when mentioned)")
+            app.add_system_message("  /quit - Disconnect and close the app")
             return True
 
         elif cmd == '/clear':
@@ -49,6 +50,12 @@ def handle_command(command, app):
                 app.last_activity = time.time()
                 asyncio.create_task(app.client.send_message("I am back"))
             return True
+
+        elif cmd == '/quit' or cmd == '/exit' or cmd == '/disconnect' or cmd == '/bye' or cmd == '/q':
+            exit()
+
+        elif cmd == '/hack' or cmd == '/matrix':
+            return r"[green]Entering the matrix... ( ⌐■_■)"
 
         else:
             app.add_system_message(f"Unknown command: {cmd}. Type /help for available commands.")

@@ -101,12 +101,6 @@ Swaps foreground and background colors:
 ```
 *Note: Blink may not work in all terminals*
 
-### Conceal
-Hides text (useful for secrets):
-```
-[conceal]Hidden text[/conceal]
-```
-
 ## Links
 
 ```
@@ -118,13 +112,7 @@ Hides text (useful for secrets):
 If you want to display brackets literally, escape them:
 
 ```
-\[This won't be formatted\]
-```
-
-Or use double brackets:
-
-```
-[[This won't be formatted]]
+\[This won't be formatted]
 ```
 
 ## Examples
