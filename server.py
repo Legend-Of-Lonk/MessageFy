@@ -46,6 +46,7 @@ async def broadcast(message, exclude=None):
 async def handle_client(reader, writer):
     username = None
     addr = writer.get_extra_info('peername')
+    authenticated = False
 
     try:
         print(f"New connection")
@@ -80,6 +81,7 @@ async def handle_client(reader, writer):
         print(f"{username} joined")
 
         clients[username] = (reader, writer)
+        authenticated = True
 
         success_msg = createMessage(
             sender="Server",
@@ -131,7 +133,7 @@ async def handle_client(reader, writer):
     except Exception as e:
         print(f"Error with client {username}: {e}")
     finally:
-        if username and username in clients:
+        if authenticated and username and username in clients:
             del clients[username]
             print(f"{username} disconnected")
 
