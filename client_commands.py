@@ -27,7 +27,7 @@ def handle_command(command, app):
         elif cmd == '/quit' or cmd == '/exit' or cmd == '/disconnect' or cmd == '/bye' or cmd == '/q':
             exit()
         
-        elif cmd == '/hack' or '/matrix':
+        elif cmd == '/hack' or cmd == '/matrix':
             return r"[green]Entering the matrix... ( ⌐■_■)"
 
         else:
