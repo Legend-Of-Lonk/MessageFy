@@ -11,6 +11,7 @@ class ChatClient:
         self.reader = None
         self.writer = None
         self.connected = False
+        self.loading_history = True
 
     async def connect(self, host=None, port=None):
         if host is None or port is None:
@@ -72,12 +73,13 @@ class ChatClient:
                 content = msg.get('content')
 
                 if msg_type == MSG_MESSAGE:
-                    self.app.add_message(sender, content)
+                    self.app.add_message(sender, content, loading_history=self.loading_history)
                 elif msg_type == MSG_JOIN:
                     self.app.add_system_message(content)
                 elif msg_type == MSG_LEAVE:
                     self.app.add_system_message(content)
                 elif msg_type == MSG_USERLIST:
+                    self.loading_history = False
                     self.app.update_user_list(content)
                 elif msg_type == MSG_ERROR:
                     pass

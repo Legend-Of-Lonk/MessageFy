@@ -4,6 +4,7 @@ from textual.widgets import Input, RichLog, Static
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from client_network import ChatClient
 from client_commands import handle_command
+from notifypy import Notify
 
 
 class ChatApp(App):
@@ -15,14 +16,24 @@ class ChatApp(App):
         super().__init__()
         self.username = username
         self.client = ChatClient(username, self)
+        self.notifications_enabled = True
+        self.afk_mode = False
+        self.last_activity = None
+        self.afk_timer_task = None
 
     def on_mount(self) -> None:
+        import time
+        self.last_activity = time.time()
         asyncio.create_task(self.client.connect())
+        self.afk_timer_task = asyncio.create_task(self.check_afk_timer())
 
     def on_unmount(self) -> None:
         import sys
         sys.stdout.write('\033[?1004l')
         sys.stdout.flush()
+
+        if self.afk_timer_task:
+            self.afk_timer_task.cancel()
 
         if self.client.connected:
             asyncio.create_task(self.client.disconnect())
@@ -39,6 +50,9 @@ class ChatApp(App):
         yield Input(placeholder="Type your message here...")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
+        import time
+        self.last_activity = time.time()
+
         message = event.value.strip()
 
         if message:
@@ -55,10 +69,10 @@ class ChatApp(App):
     def _highlight_mention(self, match):
         mentioned_user = match.group(1)
         if mentioned_user == self.username:
-            return f"[black on yellow]@{mentioned_user}[/black on yellow]"
-        return match.group(0)
+            return f"[black on bright_cyan]@{mentioned_user}[/black on bright_cyan]"
+        return f"[black on orange1]@{mentioned_user}[/black on orange1]"
 
-    def add_message(self, sender, content):
+    def add_message(self, sender, content, loading_history=False):
         from rich.markup import escape
         import re
         try:
@@ -74,22 +88,46 @@ class ChatApp(App):
                 chat_display.write(f"[bold cyan]{safe_sender}[/bold cyan]: {content}")
             else:
                 chat_display.write(f"[bold yellow]{safe_sender}[/bold yellow]: {content}")
-                if is_mentioned:
-                    self.play_notification_sound()
-                else:
-                    self.play_notification_sound()
+                if is_mentioned and not loading_history and self.afk_mode:
+                    self.notify(sender, content, mentioned=True)
         except Exception:
             pass
 
-    def play_notification_sound(self):
+    def notify(self, sender, content, mentioned=False):
+        if not self.notifications_enabled:
+            return
+
         try:
-            import sys
-            if sys.platform == 'win32':
-                import winsound
-                winsound.Beep(1000, 200)
+            notification = Notify()
+            notification.application_name = "MessageFy"
+
+            if mentioned:
+                notification.title = f"{sender} mentioned you!"
+                truncated_content = content[:100] + "..." if len(content) > 100 else content
+                notification.message = truncated_content
             else:
-                print('\a', end='', flush=True)
-        except Exception:
+                notification.title = f"New message from {sender}"
+                truncated_content = content[:100] + "..." if len(content) > 100 else content
+                notification.message = truncated_content
+
+            try:
+                import os
+                import sys
+
+                if getattr(sys, 'frozen', False):
+                    base_path = os.path.dirname(sys.executable)
+                else:
+                    base_path = os.path.dirname(os.path.abspath(__file__))
+
+                audio_path = os.path.join(base_path, "notification.wav")
+
+                if os.path.exists(audio_path):
+                    notification.audio = audio_path
+            except:
+                pass
+
+            notification.send()
+        except:
             pass
 
     def add_system_message(self, content):
@@ -109,3 +147,19 @@ class ChatApp(App):
                 users_list.update("No users connected")
         except Exception:
             pass
+
+    async def check_afk_timer(self):
+        import time
+        while True:
+            try:
+                await asyncio.sleep(10)
+                if self.last_activity and not self.afk_mode:
+                    elapsed = time.time() - self.last_activity
+                    if elapsed >= 300:
+                        self.afk_mode = True
+                        self.add_system_message("[bold yellow]Auto AFK mode enabled - 5 minutes of inactivity[/bold yellow]")
+                        await self.client.send_message("I am AFK")
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                pass
