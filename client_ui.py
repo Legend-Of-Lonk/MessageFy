@@ -81,8 +81,7 @@ class ChatApp(App):
 
             is_mentioned = f"@{self.username}" in content
 
-            if is_mentioned:
-                content = re.sub(r'@(\w+)', self._highlight_mention, content)
+            content = re.sub(r'@(\w+)', self._highlight_mention, content)
 
             if sender == self.username:
                 chat_display.write(f"[bold cyan]{safe_sender}[/bold cyan]: {content}")
