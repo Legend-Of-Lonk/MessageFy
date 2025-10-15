@@ -1,10 +1,17 @@
 import sys
 import time
+import requests
 from client_config import load_server_config
 from client_ui import ChatApp
 
+# IMPORTANT: Change this every update
+CURRENT_VERSION = "v1.1.1"
 
 def main():
+    latest_version = str(requests.get("https://raw.githubusercontent.com/Legend-Of-Lonk/MessageFy/refs/heads/main/version.txt").content).strip().strip("'b\\n")
+    if CURRENT_VERSION != latest_version:
+        print(f"Version out of date! Running version {CURRENT_VERSION}, and the latest version is {latest_version}.")
+        print("Download the new version at https://github.com/Legend-Of-Lonk/MessageFy/releases\n\n")
     host, port = load_server_config()
     print(f"Server: {host}:{port}\n")
 
