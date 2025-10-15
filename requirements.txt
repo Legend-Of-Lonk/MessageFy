@@ -1,4 +1,4 @@
 textual>=0.47.0
 rich>=13.0.0
 notify-py>=0.3.0
-requests>=2.35.0
+requests>=2.31.0
