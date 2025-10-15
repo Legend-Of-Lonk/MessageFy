@@ -56,15 +56,18 @@ class ChatApp(App):
         message = event.value.strip()
 
         if message:
-            result = handle_command(message, self)
-            if result is True:
-                event.input.value = ""
-            elif result is False:
-                asyncio.create_task(self.client.send_message(message))
-                event.input.value = ""
-            else:
-                asyncio.create_task(self.client.send_message(result))
-                event.input.value = ""
+            asyncio.create_task(self._handle_input(message, event.input))
+
+    async def _handle_input(self, message, input_widget):
+        result = await handle_command(message, self)
+        if result is True:
+            input_widget.value = ""
+        elif result is False:
+            await self.client.send_message(message)
+            input_widget.value = ""
+        else:
+            await self.client.send_message(result)
+            input_widget.value = ""
 
     def _highlight_mention(self, match):
         mentioned_user = match.group(1)
@@ -88,11 +91,11 @@ class ChatApp(App):
             else:
                 chat_display.write(f"[bold yellow]{safe_sender}[/bold yellow]: {content}")
                 if is_mentioned and not loading_history and self.afk_mode:
-                    self.notify(sender, content, mentioned=True)
+                    self.send_desktop_notification(sender, content, mentioned=True)
         except Exception:
             pass
 
-    def notify(self, sender, content, mentioned=False):
+    def send_desktop_notification(self, sender, content, mentioned=False):
         if not self.notifications_enabled:
             return
 
@@ -108,22 +111,6 @@ class ChatApp(App):
                 notification.title = f"New message from {sender}"
                 truncated_content = content[:100] + "..." if len(content) > 100 else content
                 notification.message = truncated_content
-
-            try:
-                import os
-                import sys
-
-                if getattr(sys, 'frozen', False):
-                    base_path = os.path.dirname(sys.executable)
-                else:
-                    base_path = os.path.dirname(os.path.abspath(__file__))
-
-                audio_path = os.path.join(base_path, "notification.wav")
-
-                if os.path.exists(audio_path):
-                    notification.audio = audio_path
-            except:
-                pass
 
             notification.send()
         except:

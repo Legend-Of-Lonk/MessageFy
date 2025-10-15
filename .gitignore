@@ -22,3 +22,7 @@ htmlcov/
 *~
 
 notification.oga
+server_config.json
+
+RyServer/
+build-MessageFy.sh

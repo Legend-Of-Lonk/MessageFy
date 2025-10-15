@@ -1,6 +1,7 @@
 import asyncio
+from protocal import *
 
-def handle_command(command, app):
+async def handle_command(command, app):
     if command[0] == '/' and command[1] != '/':
         parts = command.split()
         cmd = parts[0].lower()
@@ -13,6 +14,8 @@ def handle_command(command, app):
             app.add_system_message("  /dnd - Toggle Do Not Disturb mode (disable all notifications)")
             app.add_system_message("  /afk - Toggle AFK mode (enable notifications when mentioned)")
             app.add_system_message("  /quit - Disconnect and close the app")
+            app.add_system_message("  /nick <new name> - rename yourself")
+            app.add_system_message("  /hack - Enter the matrix...")
             return True
 
         elif cmd == '/clear':
@@ -57,8 +60,20 @@ def handle_command(command, app):
         elif cmd == '/hack' or cmd == '/matrix':
             return r"[green]Entering the matrix... ( ⌐■_■)"
 
-        else:
-            app.add_system_message(f"Unknown command: {cmd}. Type /help for available commands.")
+        elif cmd == '/nick':
+            if len(parts) < 2:
+                app.add_system_message('proper usage: /nick <new_name>')
+                return True
+            new_name = parts[1]
+            response = await asyncio.create_task(app.client.fetch_request(CUSTOM_REQUESTS["CHANGE_USERNAME"], new_name))
+
+            if response.get('type') == MSG_SUCCESS:
+                app.username = new_name
+                app.client.username = new_name
+
+            app.add_system_message(response.get('content'))
+
             return True
+            
 
     return False

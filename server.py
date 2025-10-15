@@ -1,5 +1,6 @@
 import asyncio
 from protocal import *
+from server_requests import handle_fetch_request
 
 clients = {}
 
@@ -127,6 +128,12 @@ async def handle_client(reader, writer):
             elif msg_type == MSG_LEAVE:
                 print(f"{username} is leaving")
                 break
+            
+            elif msg_type in FETCH_REQUESTS.values() or msg_type in CUSTOM_REQUESTS.values():
+                result = await handle_fetch_request(clients, msg, username, writer, broadcast)
+                if msg_type == CUSTOM_REQUESTS["CHANGE_USERNAME"] and result != True and result != False:
+                    username = result
+
 
     except asyncio.CancelledError:
         print(f"Connection with {username} cancelled")

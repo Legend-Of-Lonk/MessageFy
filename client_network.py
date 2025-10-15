@@ -12,6 +12,8 @@ class ChatClient:
         self.writer = None
         self.connected = False
         self.loading_history = True
+        self.pending_requests = {}
+        self.request_counter = 0
 
     async def connect(self, host=None, port=None):
         if host is None or port is None:
@@ -57,6 +59,32 @@ class ChatClient:
         except Exception as e:
             self.app.add_system_message(f"Error sending message: {e}")
 
+    async def fetch_request(self, type, content):
+        if not self.connected:
+            return None
+        try:
+            self.request_counter += 1
+            request_id = f"{self.username}_{self.request_counter}"
+
+            future = asyncio.Future()
+            self.pending_requests[request_id] = future
+
+            msg = createMessage(self.username, type, content)
+            msg['request_id'] = request_id
+            self.writer.write(serialize(msg))
+            await self.writer.drain()
+
+            result = await asyncio.wait_for(future, timeout=5.0)
+            return result
+        except asyncio.TimeoutError:
+            self.pending_requests.pop(request_id, None)
+            self.app.add_system_message("Request timed out")
+            return None
+        except Exception as e:
+            self.pending_requests.pop(request_id, None)
+            self.app.add_system_message(f"Error sending request: {e}")
+            return None
+
     async def receive_messages(self):
         try:
             while self.connected:
@@ -71,6 +99,13 @@ class ChatClient:
                 msg_type = msg.get('type')
                 sender = msg.get('sender')
                 content = msg.get('content')
+                request_id = msg.get('request_id')
+
+                if request_id and request_id in self.pending_requests:
+                    future = self.pending_requests.pop(request_id)
+                    if not future.done():
+                        future.set_result(msg)
+                    continue
 
                 if msg_type == MSG_MESSAGE:
                     self.app.add_message(sender, content, loading_history=self.loading_history)
