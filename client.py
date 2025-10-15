@@ -8,7 +8,7 @@ from client_ui import ChatApp
 CURRENT_VERSION = "v1.1.1"
 
 def main():
-    latest_version = requests.get("https://raw.githubusercontent.com/Legend-Of-Lonk/MessageFy/refs/heads/main/version.txt").content
+    latest_version = requests.get("https://raw.githubusercontent.com/Desyncfy/MessageFy/refs/heads/main/version.txt").content
     if latest_version != CURRENT_VERSION:
         print(f"Version out of date! Running version {CURRENT_VERSION}, and the latest version is {latest_version}.")
         print("Download the new version at https://github.com/Legend-Of-Lonk/MessageFy/releases\n\n")
