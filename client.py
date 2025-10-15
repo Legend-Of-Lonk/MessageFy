@@ -9,7 +9,7 @@ CURRENT_VERSION = "v1.1.1"
 
 def main():
     latest_version = requests.get("https://raw.githubusercontent.com/Desyncfy/MessageFy/refs/heads/main/version.txt").content
-    if latest_version != CURRENT_VERSION:
+    if f"b'{latest_version}'\\n" != CURRENT_VERSION:
         print(f"Version out of date! Running version {CURRENT_VERSION}, and the latest version is {latest_version}.")
         print("Download the new version at https://github.com/Legend-Of-Lonk/MessageFy/releases\n\n")
     host, port = load_server_config()
