@@ -33,7 +33,9 @@ async def send_history(writer, username):
 async def broadcast(message, exclude=None):
     data = serialize(message)
 
-    for username, (reader, writer) in clients.items():
+    clients_snapshot = list(clients.items())
+
+    for username, (reader, writer) in clients_snapshot:
         if username == exclude:
             continue
 

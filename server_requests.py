@@ -18,35 +18,21 @@ async def handle_fetch_request(clients, msg, username, writer, broadcast):
         print(f"USERLIST sent to {username}")
         return True
     if msg_type == "CHANGE_USERNAME":
-        new_name = msg["content"]
-        request_id = msg.get('request_id')
-        print(f"Changing client's name from {username} to {new_name}")
-        if new_name in clients.keys():
-            print(f"{new_name} already taken")
-            response = createMessage(
-                    sender="Server", 
-                    type=MSG_ERROR, 
-                    content=f"[bold red]{new_name} already taken please try something else [/bold red]"
-             )
+        return await handle_change_username(clients, msg, username, writer, broadcast)
 
-            if request_id:
-                response['request_id'] = request_id
+    return False
 
-            writer.write(serialize(response))
-            await writer.drain()
-
-            return False
-        
-        clients[new_name] = clients[username]
-        del clients[username]
-
-        print(f"{username} succesfully changed to {new_name}")
-
+async def handle_change_username(clients, msg, username, writer, broadcast):
+    new_name = msg["content"]
+    request_id = msg.get('request_id')
+    print(f"Changing client's name from {username} to {new_name}")
+    if new_name in clients.keys():
+        print(f"{new_name} already taken")
         response = createMessage(
-                sender="Server", 
-                type=MSG_SUCCESS, 
-                content=f"[bold green]Your name was succesfully changed to {new_name}[/bold green]"
-        )
+                sender="Server",
+                type=MSG_ERROR,
+                content=f"[bold red]{new_name} already taken please try something else [/bold red]"
+         )
 
         if request_id:
             response['request_id'] = request_id
@@ -54,16 +40,33 @@ async def handle_fetch_request(clients, msg, username, writer, broadcast):
         writer.write(serialize(response))
         await writer.drain()
 
-        updated_client_list = createMessage(
-                sender="Server",
-                type=MSG_USERLIST,
-                content=list(clients.keys())
-                )
-        update_message = createMessage(sender="Server", type=MSG_MESSAGE, content=f"[green]{username} changed their username to {new_name} using /nick")
-        await broadcast(updated_client_list)
-        await broadcast(update_message)
-        
+        return False
 
-        return new_name
+    clients[new_name] = clients[username]
+    del clients[username]
 
-    return False
+    print(f"{username} succesfully changed to {new_name}")
+
+    response = createMessage(
+            sender="Server",
+            type=MSG_SUCCESS,
+            content=f"[bold green]Your name was succesfully changed to {new_name}[/bold green]"
+    )
+
+    if request_id:
+        response['request_id'] = request_id
+
+    writer.write(serialize(response))
+    await writer.drain()
+
+    updated_client_list = createMessage(
+            sender="Server",
+            type=MSG_USERLIST,
+            content=list(clients.keys())
+            )
+    update_message = createMessage(sender="Server", type=MSG_MESSAGE, content=f"[green]{username} changed their username to {new_name} using /nick")
+    await broadcast(updated_client_list)
+    await broadcast(update_message)
+
+
+    return new_name

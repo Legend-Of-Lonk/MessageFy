@@ -55,6 +55,10 @@ class ChatApp(App):
 
         message = event.value.strip()
 
+        if len(message) > 500:
+            self.add_system_message("Message greator than 500 charecters please shorten it")
+            return
+
         if message:
             asyncio.create_task(self._handle_input(message, event.input))
 

@@ -1,5 +1,6 @@
 import asyncio
 from protocal import *
+import time
 from client_config import load_server_config
 
 
@@ -14,6 +15,8 @@ class ChatClient:
         self.loading_history = True
         self.pending_requests = {}
         self.request_counter = 0
+        self.intentional_disconnect = False
+        self.reconnecting = False
 
     async def connect(self, host=None, port=None):
         if host is None or port is None:
@@ -122,14 +125,44 @@ class ChatClient:
         except Exception as e:
             self.app.add_system_message(f"Connection error: {e}")
         finally:
+            if self.intentional_disconnect:
+                self.intentional_disconnect = False
+                return
+
             self.connected = False
             self.app.add_system_message("Disconnected from server")
+
+            self.reconnecting = True
+            for i in range(5):
+                self.app.add_system_message(f"Attempting to reconnect - Attempt {i + 1}/5")
+                try:
+                    result = await self.connect()
+                    if result is True:
+                        try:
+                            chat_display = self.app.query_one("#chat_messages")
+                            chat_display.clear()
+                        except Exception:
+                            pass
+                        self.app.add_system_message("Successfully reconnected to server!")
+                        self.reconnecting = False
+                        return
+                    else:
+                        self.app.add_system_message(f"Reconnection failed: {result}")
+                except Exception as e:
+                    self.app.add_system_message(f"Reconnection attempt failed: {e}")
+
+                if i < 4:
+                    await asyncio.sleep(2)
+
+            self.reconnecting = False
+            self.app.add_system_message("Failed to reconnect after 5 attempts")
 
     async def disconnect(self):
         if not self.connected:
             return
 
         try:
+            self.intentional_disconnect = True
             leave_msg = createMessage(self.username, type=MSG_LEAVE)
             self.writer.write(serialize(leave_msg))
             await self.writer.drain()
