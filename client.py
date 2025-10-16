@@ -36,7 +36,7 @@ def main():
 
             async def wrapped_connect(host=None, port=None):
                 result = await original_connect(host, port)
-                if result != True:
+                if result != True and not app.client.reconnecting:
                     connection_error[0] = result
                     app.exit()
                 return result
